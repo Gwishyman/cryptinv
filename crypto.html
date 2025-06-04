@@ -182,6 +182,29 @@
       }
       updateDisplay();
     };
+    import { doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+const flagRef = doc(db, "flags", id);
+const flagSnap = await getDoc(flagRef);
+
+if (!flagSnap.exists()) {
+  await setDoc(flagRef, { active: true });
+  setInterval(async () => {
+    const snap = await getDoc(cryptoRef);
+    if (!snap.exists()) return;
+    const data = snap.data();
+    let history = data.history || [data.value];
+
+    const newValue = Math.max(1, parseFloat((data.value * (1 + (Math.random() - 0.5) / 20)).toFixed(2)));
+    history.push(newValue);
+    if (history.length > 30) history.shift();
+
+    await updateDoc(cryptoRef, {
+      value: newValue,
+      history
+    });
+  }, 2500);
+}
   </script>
 </body>
 </html>
