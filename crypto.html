@@ -61,103 +61,103 @@
   </div>
 
   <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
-import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+  import { getFirestore, doc, getDoc, updateDoc, collection, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
-  authDomain: "cryptinv-727ad.firebaseapp.com",
-  projectId: "cryptinv-727ad",
-  storageBucket: "cryptinv-727ad.appspot.com",
-  messagingSenderId: "151829956356",
-  appId: "1:151829956356:web:16f4094359c90fbbb57251"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
+    authDomain: "cryptinv-727ad.firebaseapp.com",
+    projectId: "cryptinv-727ad",
+    storageBucket: "cryptinv-727ad.appspot.com",
+    messagingSenderId: "151829956356",
+    appId: "1:151829956356:web:16f4094359c90fbbb57251"
+  };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
 
-const urlParams = new URLSearchParams(location.search);
-const id = urlParams.get('id');
+  const urlParams = new URLSearchParams(location.search);
+  const id = urlParams.get('id');
 
-onAuthStateChanged(auth, async user => {
-  if (!user) return location.href = 'index.html';
+  onAuthStateChanged(auth, async user => {
+    if (!user) return location.href = 'index.html';
 
-  const cryptoRef = doc(db, 'cryptos', id);
-  const snap = await getDoc(cryptoRef);
-  if (!snap.exists()) return alert('Crypto not found.');
+    const cryptoRef = doc(db, 'cryptos', id);
+    const snap = await getDoc(cryptoRef);
+    if (!snap.exists()) return alert('Crypto not found.');
 
-  const name = snap.data().name;
-  document.getElementById('name').textContent = name;
+    const name = snap.data().name;
+    document.getElementById('name').textContent = name;
 
-  const chart = document.getElementById('chart').getContext('2d');
-  const valueData = snap.data().history || [snap.data().value];
+    // Initialize chart (assuming you have a canvas with id 'chart')
+    const chart = document.getElementById('chart').getContext('2d');
+    const valueData = snap.data().history || [snap.data().value];
 
-  new Chart(chart, {
-    type: 'line',
-    data: {
-      labels: valueData.map((_, i) => i + 1),
-      datasets: [{
-        label: `${name} Value`,
-        data: valueData,
-        borderColor: '#fff',
-        tension: 0.4
-      }]
-    },
-    options: {
-      scales: {
-        x: { ticks: { color: '#fff' } },
-        y: { ticks: { color: '#fff' } }
+    new Chart(chart, {
+      type: 'line',
+      data: {
+        labels: valueData.map((_, i) => i + 1),
+        datasets: [{
+          label: `${name} Value`,
+          data: valueData,
+          borderColor: '#fff',
+          tension: 0.4
+        }]
       },
-      plugins: {
-        legend: { labels: { color: '#fff' } }
+      options: {
+        scales: {
+          x: { ticks: { color: '#fff' } },
+          y: { ticks: { color: '#fff' } }
+        },
+        plugins: {
+          legend: { labels: { color: '#fff' } }
+        }
       }
-    }
-  });
+    });
 
-  let balance = 0;
-  let holdings = 0;
+    let balance = 0;
+    let holdings = 0;
 
-  const userRef = doc(db, 'users', user.uid);
-  const holdRef = doc(collection(userRef, 'holdings'), id);
-  const [userSnap, holdSnap] = await Promise.all([getDoc(userRef), getDoc(holdRef)]);
+    const userRef = doc(db, 'users', user.uid);
+    const holdRef = doc(collection(userRef, 'holdings'), id);
+    const [userSnap, holdSnap] = await Promise.all([getDoc(userRef), getDoc(holdRef)]);
 
-  if (userSnap.exists()) balance = userSnap.data().balance || 0;
-  if (holdSnap.exists()) holdings = holdSnap.data().amount || 0;
+    if (userSnap.exists()) balance = userSnap.data().balance || 0;
+    if (holdSnap.exists()) holdings = holdSnap.data().amount || 0;
 
-  document.getElementById('balance').textContent = `Balance: $${balance}`;
-  document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
-
-  document.getElementById('buy').onclick = async () => {
-    const cryptoSnap = await getDoc(cryptoRef);
-    const price = cryptoSnap.data().value;
-    if (balance < price) return alert('Not enough money!');
-    balance -= price;
-    holdings += 1;
-    await updateDoc(userRef, { balance });
-    await setDoc(holdRef, { amount: holdings });
     document.getElementById('balance').textContent = `Balance: $${balance}`;
     document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
-  };
 
-  document.getElementById('sell').onclick = async () => {
-    if (holdings <= 0) return alert('You don’t own any!');
-    const cryptoSnap = await getDoc(cryptoRef);
-    const price = cryptoSnap.data().value;
-    balance += price;
-    holdings -= 1;
-    await updateDoc(userRef, { balance });
-    if (holdings > 0) {
+    document.getElementById('buy').onclick = async () => {
+      const cryptoSnap = await getDoc(cryptoRef);
+      const price = cryptoSnap.data().value;
+      if (balance < price) return alert('Not enough money!');
+      balance -= price;
+      holdings += 1;
+      await updateDoc(userRef, { balance });
       await setDoc(holdRef, { amount: holdings });
-    } else {
-      await deleteDoc(holdRef);
-    }
-    document.getElementById('balance').textContent = `Balance: $${balance}`;
-    document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
-  };
-});
-</script>
+      document.getElementById('balance').textContent = `Balance: $${balance}`;
+      document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
+    };
 
+    document.getElementById('sell').onclick = async () => {
+      if (holdings <= 0) return alert('You don’t own any!');
+      const cryptoSnap = await getDoc(cryptoRef);
+      const price = cryptoSnap.data().value;
+      balance += price;
+      holdings -= 1;
+      await updateDoc(userRef, { balance });
+      if (holdings > 0) {
+        await setDoc(holdRef, { amount: holdings });
+      } else {
+        await deleteDoc(holdRef);
+      }
+      document.getElementById('balance').textContent = `Balance: $${balance}`;
+      document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
+    };
+  });
+</script>
 </body>
 </html>
