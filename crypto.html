@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title id="titlecrypto">Crypto</title>
+  <title>Crypto</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
@@ -121,8 +121,8 @@
       if (!snap.exists()) return;
       const data = snap.data();
       document.getElementById('name').textContent = data.name;
+      document.title = `${data.name} - CryptInv`;
       const values = data.history || [data.value];
-
       if (!chart) {
         const ctx = document.getElementById('chart').getContext('2d');
         chartLabels = values.map((_, i) => i + 1);
@@ -182,8 +182,6 @@
       }
       updateDisplay();
     };
-
-    document.getElementById('titlecrypto').textContent = name + " - CryptInv";
   </script>
 </body>
 </html>
