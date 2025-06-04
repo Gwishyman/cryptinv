@@ -55,59 +55,62 @@
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+  import { getFirestore, collection, getDocs, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
-      authDomain: "cryptinv-727ad.firebaseapp.com",
-      projectId: "cryptinv-727ad",
-      storageBucket: "cryptinv-727ad.appspot.com",
-      messagingSenderId: "151829956356",
-      appId: "1:151829956356:web:16f4094359c90fbbb57251"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
+    authDomain: "cryptinv-727ad.firebaseapp.com",
+    projectId: "cryptinv-727ad",
+    storageBucket: "cryptinv-727ad.appspot.com",
+    messagingSenderId: "151829956356",
+    appId: "1:151829956356:web:16f4094359c90fbbb57251"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
 
-    onAuthStateChanged(auth, async user => {
-      if (!user) return location.href = 'index.html';
+  onAuthStateChanged(auth, async user => {
+    if (!user) return location.href = 'index.html';
 
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDocs(collection(db, 'users'));
-      const adminSnap = await userRef.get();
-      if (!adminSnap.exists() || !adminSnap.data().admin) return alert('Not an admin');
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists() || !userSnap.data().admin) {
+      alert('Access denied: Admins only.');
+      return location.href = 'index.html';
+    }
 
-      const cryptoList = document.getElementById('cryptoList');
-      const userList = document.getElementById('userList');
+    const cryptoList = document.getElementById('cryptoList');
+    const userList = document.getElementById('userList');
 
-      const cryptos = await getDocs(collection(db, 'cryptos'));
-      cryptos.forEach(c => {
-        const div = document.createElement('div');
-        div.className = 'item';
-        div.innerHTML = `
-          <div><strong>${c.data().name}</strong> — $${c.data().value}</div>
-          <button data-id="${c.id}">Delete</button>
-        `;
-        div.querySelector('button').onclick = async () => {
-          await deleteDoc(doc(db, 'cryptos', c.id));
-          div.remove();
-        };
-        cryptoList.appendChild(div);
-      });
-
-      userSnap.forEach(u => {
-        const div = document.createElement('div');
-        const data = u.data();
-        div.className = 'item';
-        div.innerHTML = `
-          <div>${data.username || '(no username)'} — $${data.balance || 0}</div>
-        `;
-        userList.appendChild(div);
-      });
+    const cryptos = await getDocs(collection(db, 'cryptos'));
+    cryptos.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.innerHTML = `
+        <div><strong>${c.data().name}</strong> — $${c.data().value}</div>
+        <button data-id="${c.id}">Delete</button>
+      `;
+      div.querySelector('button').onclick = async () => {
+        await deleteDoc(doc(db, 'cryptos', c.id));
+        div.remove();
+      };
+      cryptoList.appendChild(div);
     });
-  </script>
+
+    const users = await getDocs(collection(db, 'users'));
+    users.forEach(u => {
+      const div = document.createElement('div');
+      const data = u.data();
+      div.className = 'item';
+      div.innerHTML = `
+        <div>${data.username || '(no username)'} — $${data.balance || 0}</div>
+      `;
+      userList.appendChild(div);
+    });
+  });
+</script>
 </body>
 </html>
