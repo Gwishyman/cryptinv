@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Crypto Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore-compat.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #2e2e2e;
+      color: #fdf5e6;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #3a3a3a;
+      padding: 15px;
+      font-size: 18px;
+    }
+    .cryptos {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 20px;
+    }
+    .crypto {
+      background: #404040;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 8px #000;
+    }
+    .crypto h2 {
+      margin: 0;
+    }
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    button {
+      background: #fdf5e6;
+      color: #2e2e2e;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 16px;
+      flex: 1;
+      margin: 0 5px;
+    }
+    #createBtn {
+      background: #ffd700;
+      color: #2e2e2e;
+      margin-left: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div id="balance">$0</div>
+    <button id="createBtn">Create Crypto</button>
+  </div>
+  <div class="cryptos" id="cryptos"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
+      authDomain: "cryptinv-727ad.firebaseapp.com",
+      projectId: "cryptinv-727ad",
+      storageBucket: "cryptinv-727ad.appspot.com",
+      messagingSenderId: "151829956356",
+      appId: "1:151829956356:web:16f4094359c90fbbb57251"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let user;
+    const DAILY_MONEY = 1200;
+    const CREATION_COST = 150;
+
+    auth.onAuthStateChanged(async u => {
+      if (!u) return location.href = 'index.html';
+      user = u;
+      const userRef = db.collection('users').doc(user.uid);
+      const snap = await userRef.get();
+      if (!snap.exists) {
+        await userRef.set({ balance: 1200, lastClaim: Date.now() });
+      }
+      setInterval(() => addDailyMoney(userRef), 5000);
+      render(userRef);
+    });
+
+    async function addDailyMoney(ref) {
+      const doc = await ref.get();
+      const data = doc.data();
+      const now = Date.now();
+      if (now - data.lastClaim > 86400000) {
+        ref.update({ balance: data.balance + DAILY_MONEY, lastClaim: now });
+        document.getElementById('balance').textContent = `$${data.balance + DAILY_MONEY}`;
+      }
+    }
+
+    async function render(ref) {
+      const doc = await ref.get();
+      const bal = doc.data().balance;
+      document.getElementById('balance').textContent = `$${bal}`;
+
+      db.collection('cryptos').onSnapshot(snapshot => {
+        document.getElementById('cryptos').innerHTML = '';
+        snapshot.forEach(doc => {
+          const c = doc.data();
+          const div = document.createElement('div');
+          div.className = 'crypto';
+          div.innerHTML = `
+            <h2>${c.name}</h2>
+            <p>Value: $${c.value.toFixed(2)}</p>
+            <div class="buttons">
+              <button onclick="buy('${doc.id}')">Buy</button>
+              <button onclick="sell('${doc.id}')">Sell</button>
+            </div>
+          `;
+          document.getElementById('cryptos').appendChild(div);
+        });
+      });
+    }
+
+    document.getElementById('createBtn').onclick = async () => {
+      const name = prompt('Crypto name:');
+      const userRef = db.collection('users').doc(user.uid);
+      const snap = await userRef.get();
+      const data = snap.data();
+      if (data.balance < CREATION_COST) return alert("Not enough money");
+      const id = Math.random().toString(36).slice(2);
+      await db.collection('cryptos').doc(id).set({
+        name: name,
+        value: Math.random() * 100 + 1,
+        creator: user.uid
+      });
+      await userRef.update({ balance: data.balance - CREATION_COST });
+      document.getElementById('balance').textContent = `$${data.balance - CREATION_COST}`;
+    };
+
+    async function buy(id) {
+      alert("Bought crypto " + id);
+    }
+
+    async function sell(id) {
+      alert("Sold crypto " + id);
+    }
+  </script>
+</body>
+</html>
