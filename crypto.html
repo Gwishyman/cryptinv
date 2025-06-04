@@ -1,149 +1,175 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Crypto</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore-compat.js"></script>
+  <title id="titlecrypto">Crypto</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
       margin: 0;
-      background: #2e2e2e;
-      color: #fdf5e6;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: sans-serif;
+      background: #222;
+      color: #f5f5dc;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 20px;
     }
+
     h1 {
+      text-align: center;
       font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    canvas {
+      background: #111;
+      border-radius: 10px;
+      max-width: 100%;
+      margin: 20px 0;
+    }
+
+    .info {
+      margin-bottom: 10px;
+      font-size: 16px;
       text-align: center;
     }
-    #value {
-      font-size: 22px;
-      margin: 10px 0;
-    }
-    canvas {
-      background: #1e1e1e;
-      border-radius: 12px;
-      width: 100%;
-      max-width: 400px;
-      height: 200px;
-      margin-top: 20px;
-    }
-    .actions {
+
+    .buttons {
       display: flex;
       gap: 10px;
-      margin-top: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 10px;
     }
+
     button {
-      background: #ffd700;
-      color: #2e2e2e;
-      padding: 12px 20px;
+      background: #444;
+      color: #f5f5dc;
       border: none;
-      border-radius: 8px;
+      padding: 10px 20px;
       font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #666;
     }
   </style>
 </head>
 <body>
   <h1 id="name">Loading...</h1>
-  <h3 id="balance">Balance: $0</h3>
-  <h3 id="holdings">Holdings: 0 units</h3>
-  <div id="value">$0.00</div>
-  <canvas id="graph" width="400" height="200"></canvas>
-  <div class="actions">
-    <button onclick="buy()">Buy</button>
-    <button onclick="sell()">Sell</button>
+
+  <div class="info" id="balance">Balance: $0</div>
+  <div class="info" id="holdings">Holdings: 0 units</div>
+
+  <canvas id="chart" width="350" height="200"></canvas>
+
+  <div class="buttons">
+    <button id="buy">Buy</button>
+    <button id="sell">Sell</button>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
-  import { getFirestore, doc, getDoc, updateDoc, collection, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, updateDoc, setDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
-    authDomain: "cryptinv-727ad.firebaseapp.com",
-    projectId: "cryptinv-727ad",
-    storageBucket: "cryptinv-727ad.appspot.com",
-    messagingSenderId: "151829956356",
-    appId: "1:151829956356:web:16f4094359c90fbbb57251"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
+      authDomain: "cryptinv-727ad.firebaseapp.com",
+      projectId: "cryptinv-727ad",
+      storageBucket: "cryptinv-727ad.appspot.com",
+      messagingSenderId: "151829956356",
+      appId: "1:151829956356:web:16f4094359c90fbbb57251"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
 
-  const urlParams = new URLSearchParams(location.search);
-  const id = urlParams.get('id');
-
-  onAuthStateChanged(auth, async user => {
-    if (!user) return location.href = 'index.html';
-
+    const id = new URLSearchParams(location.search).get('id');
     const cryptoRef = doc(db, 'cryptos', id);
-    const snap = await getDoc(cryptoRef);
-    if (!snap.exists()) return alert('Crypto not found.');
 
-    const name = snap.data().name;
-    document.getElementById('name').textContent = name;
-
-    // Initialize chart (assuming you have a canvas with id 'chart')
-    const chart = document.getElementById('chart').getContext('2d');
-    const valueData = snap.data().history || [snap.data().value];
-
-    new Chart(chart, {
-      type: 'line',
-      data: {
-        labels: valueData.map((_, i) => i + 1),
-        datasets: [{
-          label: `${name} Value`,
-          data: valueData,
-          borderColor: '#fff',
-          tension: 0.4
-        }]
-      },
-      options: {
-        scales: {
-          x: { ticks: { color: '#fff' } },
-          y: { ticks: { color: '#fff' } }
-        },
-        plugins: {
-          legend: { labels: { color: '#fff' } }
-        }
-      }
-    });
-
+    let chart, chartData, chartLabels;
     let balance = 0;
     let holdings = 0;
+    let userRef, holdRef;
 
-    const userRef = doc(db, 'users', user.uid);
-    const holdRef = doc(collection(userRef, 'holdings'), id);
-    const [userSnap, holdSnap] = await Promise.all([getDoc(userRef), getDoc(holdRef)]);
+    function updateDisplay() {
+      document.getElementById('balance').textContent = `Balance: $${balance}`;
+      document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
+    }
 
-    if (userSnap.exists()) balance = userSnap.data().balance || 0;
-    if (holdSnap.exists()) holdings = holdSnap.data().amount || 0;
+    onAuthStateChanged(auth, async user => {
+      if (!user) return location.href = 'index.html';
+      userRef = doc(db, 'users', user.uid);
+      holdRef = doc(collection(userRef, 'holdings'), id);
 
-    document.getElementById('balance').textContent = `Balance: $${balance}`;
-    document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
+      const [userSnap, holdSnap] = await Promise.all([
+        getDoc(userRef),
+        getDoc(holdRef)
+      ]);
+
+      balance = userSnap.exists() ? (userSnap.data().balance || 0) : 0;
+      holdings = holdSnap.exists() ? (holdSnap.data().amount || 0) : 0;
+      updateDisplay();
+    });
+
+    onSnapshot(cryptoRef, snap => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      document.getElementById('name').textContent = data.name;
+      const values = data.history || [data.value];
+
+      if (!chart) {
+        const ctx = document.getElementById('chart').getContext('2d');
+        chartLabels = values.map((_, i) => i + 1);
+        chartData = values;
+
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: chartLabels,
+            datasets: [{
+              label: `${data.name} Value`,
+              data: chartData,
+              borderColor: '#f5f5dc',
+              backgroundColor: 'rgba(245,245,220,0.1)',
+              tension: 0.4
+            }]
+          },
+          options: {
+            scales: {
+              x: { ticks: { color: '#f5f5dc' } },
+              y: { ticks: { color: '#f5f5dc' } }
+            },
+            plugins: {
+              legend: { labels: { color: '#f5f5dc' } }
+            }
+          }
+        });
+      } else {
+        chart.data.labels = values.map((_, i) => i + 1);
+        chart.data.datasets[0].data = values;
+        chart.update();
+      }
+    });
 
     document.getElementById('buy').onclick = async () => {
       const cryptoSnap = await getDoc(cryptoRef);
       const price = cryptoSnap.data().value;
-      if (balance < price) return alert('Not enough money!');
+      if (balance < price) return alert("Not enough money.");
       balance -= price;
       holdings += 1;
       await updateDoc(userRef, { balance });
       await setDoc(holdRef, { amount: holdings });
-      document.getElementById('balance').textContent = `Balance: $${balance}`;
-      document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
+      updateDisplay();
     };
 
     document.getElementById('sell').onclick = async () => {
-      if (holdings <= 0) return alert('You don’t own any!');
+      if (holdings <= 0) return alert("You don't own any!");
       const cryptoSnap = await getDoc(cryptoRef);
       const price = cryptoSnap.data().value;
       balance += price;
@@ -154,10 +180,10 @@
       } else {
         await deleteDoc(holdRef);
       }
-      document.getElementById('balance').textContent = `Balance: $${balance}`;
-      document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
+      updateDisplay();
     };
-  });
-</script>
+
+    document.getElementById('titlecrypto').textContent = name + " - CryptInv";
+  </script>
 </body>
 </html>
