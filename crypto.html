@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Crypto</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore-compat.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #2e2e2e;
+      color: #fdf5e6;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 28px;
+      text-align: center;
+    }
+    #value {
+      font-size: 22px;
+      margin: 10px 0;
+    }
+    canvas {
+      background: #1e1e1e;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      height: 200px;
+      margin-top: 20px;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    button {
+      background: #ffd700;
+      color: #2e2e2e;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="name">Loading...</h1>
+  <div id="value">$0.00</div>
+  <canvas id="graph" width="400" height="200"></canvas>
+  <div class="actions">
+    <button onclick="buy()">Buy</button>
+    <button onclick="sell()">Sell</button>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
+      authDomain: "cryptinv-727ad.firebaseapp.com",
+      projectId: "cryptinv-727ad",
+      storageBucket: "cryptinv-727ad.appspot.com",
+      messagingSenderId: "151829956356",
+      appId: "1:151829956356:web:16f4094359c90fbbb57251"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const id = new URLSearchParams(location.search).get('id');
+    let docRef = db.collection('cryptos').doc(id);
+    let values = [];
+
+    function drawGraph(data) {
+      const canvas = document.getElementById('graph');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 2;
+      const max = Math.max(...data);
+      const min = Math.min(...data);
+      const range = max - min || 1;
+      data.forEach((v, i) => {
+        const x = (i / (data.length - 1)) * canvas.width;
+        const y = canvas.height - ((v - min) / range) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    function updateCrypto() {
+      docRef.get().then(doc => {
+        const data = doc.data();
+        document.getElementById('name').textContent = data.name;
+        document.getElementById('value').textContent = `$${data.value.toFixed(2)}`;
+        values.push(data.value);
+        if (values.length > 30) values.shift();
+        drawGraph(values);
+      });
+    }
+
+    setInterval(() => {
+      docRef.get().then(doc => {
+        const data = doc.data();
+        const delta = (Math.random() - 0.5) * 4;
+        const newValue = Math.max(1, data.value + delta);
+        docRef.update({ value: newValue });
+      });
+    }, 5000);
+
+    setInterval(updateCrypto, 3000);
+    updateCrypto();
+
+    function buy() {
+      alert('Bought');
+    }
+
+    function sell() {
+      alert('Sold');
+    }
+  </script>
+</body>
+</html>
