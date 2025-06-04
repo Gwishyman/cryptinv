@@ -86,6 +86,14 @@
       if (!snap.exists) await ref.set({ balance: 999999, lastClaim: Date.now() });
       setInterval(() => updateDaily(ref), 5000);
       render(ref);
+      if (snap.data().admin) {
+  const adminBtn = document.createElement('button');
+  adminBtn.textContent = "Admin Panel";
+  adminBtn.onclick = () => {
+    window.location.href = 'admin.html';
+  };
+  document.querySelector('.topbar').appendChild(adminBtn);
+}
     });
 
     async function updateDaily(ref) {
