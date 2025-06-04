@@ -1,80 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Crypto</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>Loading... - CryptInv</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      margin: 0;
-      font-family: sans-serif;
-      background: #222;
-      color: #f5f5dc;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      background: #2f2f2f;
+      color: #fdf6ed;
+      font-family: Arial, sans-serif;
+      text-align: center;
       padding: 20px;
+      margin: 0;
     }
-
-    h1 {
-      text-align: center;
-      font-size: 28px;
-      margin-bottom: 10px;
+    #container {
+      max-width: 500px;
+      margin: auto;
     }
-
     canvas {
-      background: #111;
-      border-radius: 10px;
-      max-width: 100%;
-      margin: 20px 0;
+      width: 100% !important;
+      height: auto !important;
+      margin-bottom: 20px;
     }
-
-    .info {
-      margin-bottom: 10px;
-      font-size: 16px;
-      text-align: center;
-    }
-
-    .buttons {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-top: 10px;
-    }
-
     button {
       background: #444;
-      color: #f5f5dc;
+      color: #fff;
       border: none;
-      padding: 10px 20px;
+      padding: 12px 24px;
       font-size: 16px;
+      margin: 10px;
       border-radius: 8px;
       cursor: pointer;
     }
-
     button:hover {
       background: #666;
     }
   </style>
 </head>
 <body>
-  <h1 id="name">Loading...</h1>
-
-  <div class="info" id="balance">Balance: $0</div>
-  <div class="info" id="holdings">Holdings: 0 units</div>
-
-  <canvas id="chart" width="350" height="200"></canvas>
-
-  <div class="buttons">
-    <button id="buy">Buy</button>
-    <button id="sell">Sell</button>
+  <div id="container">
+    <h1 id="name">Loading...</h1>
+    <h2 id="value">$0</h2>
+    <canvas id="chart"></canvas>
+    <div>
+      <button id="buy">Buy</button>
+      <button id="sell">Sell</button>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, updateDoc, setDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, onSnapshot, updateDoc, arrayUnion
+    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
@@ -89,122 +69,102 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
-    const id = new URLSearchParams(location.search).get('id');
-    const cryptoRef = doc(db, 'cryptos', id);
+    const params = new URLSearchParams(location.search);
+    const id = params.get("id");
 
-    let chart, chartData, chartLabels;
-    let balance = 0;
-    let holdings = 0;
-    let userRef, holdRef;
+    const nameElem = document.getElementById("name");
+    const valueElem = document.getElementById("value");
+    const buyBtn = document.getElementById("buy");
+    const sellBtn = document.getElementById("sell");
 
-    function updateDisplay() {
-      document.getElementById('balance').textContent = `Balance: $${balance}`;
-      document.getElementById('holdings').textContent = `Holdings: ${holdings} units`;
-    }
+    const chartCanvas = document.getElementById("chart");
+    let chart;
 
-    onAuthStateChanged(auth, async user => {
-      if (!user) return location.href = 'index.html';
-      userRef = doc(db, 'users', user.uid);
-      holdRef = doc(collection(userRef, 'holdings'), id);
+    const cryptoRef = doc(db, "cryptos", id);
 
-      const [userSnap, holdSnap] = await Promise.all([
-        getDoc(userRef),
-        getDoc(holdRef)
-      ]);
-
-      balance = userSnap.exists() ? (userSnap.data().balance || 0) : 0;
-      holdings = holdSnap.exists() ? (holdSnap.data().amount || 0) : 0;
-      updateDisplay();
-    });
-
-    onSnapshot(cryptoRef, snap => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      document.getElementById('name').textContent = data.name;
-      document.title = `${data.name} - CryptInv`;
-      const values = data.history || [data.value];
+    function updateChart(history) {
       if (!chart) {
-        const ctx = document.getElementById('chart').getContext('2d');
-        chartLabels = values.map((_, i) => i + 1);
-        chartData = values;
-
-        chart = new Chart(ctx, {
-          type: 'line',
+        chart = new Chart(chartCanvas, {
+          type: "line",
           data: {
-            labels: chartLabels,
+            labels: history.map((_, i) => i + 1),
             datasets: [{
-              label: `${data.name} Value`,
-              data: chartData,
-              borderColor: '#f5f5dc',
-              backgroundColor: 'rgba(245,245,220,0.1)',
-              tension: 0.4
+              label: "Value",
+              data: history,
+              borderColor: "#fdf6ed",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              tension: 0.3
             }]
           },
           options: {
             scales: {
-              x: { ticks: { color: '#f5f5dc' } },
-              y: { ticks: { color: '#f5f5dc' } }
-            },
-            plugins: {
-              legend: { labels: { color: '#f5f5dc' } }
+              x: { display: false },
+              y: { beginAtZero: true }
             }
           }
         });
       } else {
-        chart.data.labels = values.map((_, i) => i + 1);
-        chart.data.datasets[0].data = values;
+        chart.data.labels = history.map((_, i) => i + 1);
+        chart.data.datasets[0].data = history;
         chart.update();
       }
-    });
+    }
 
-    document.getElementById('buy').onclick = async () => {
-      const cryptoSnap = await getDoc(cryptoRef);
-      const price = cryptoSnap.data().value;
-      if (balance < price) return alert("Not enough money.");
-      balance -= price;
-      holdings += 1;
-      await updateDoc(userRef, { balance });
-      await setDoc(holdRef, { amount: holdings });
-      updateDisplay();
-    };
-
-    document.getElementById('sell').onclick = async () => {
-      if (holdings <= 0) return alert("You don't own any!");
-      const cryptoSnap = await getDoc(cryptoRef);
-      const price = cryptoSnap.data().value;
-      balance += price;
-      holdings -= 1;
-      await updateDoc(userRef, { balance });
-      if (holdings > 0) {
-        await setDoc(holdRef, { amount: holdings });
-      } else {
-        await deleteDoc(holdRef);
+    onSnapshot(cryptoRef, (snap) => {
+      if (!snap.exists()) {
+        nameElem.textContent = "Not Found";
+        return;
       }
-      updateDisplay();
-    };
-    import { doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-
-const flagRef = doc(db, "flags", id);
-const flagSnap = await getDoc(flagRef);
-
-if (!flagSnap.exists()) {
-  await setDoc(flagRef, { active: true });
-  setInterval(async () => {
-    const snap = await getDoc(cryptoRef);
-    if (!snap.exists()) return;
-    const data = snap.data();
-    let history = data.history || [data.value];
-
-    const newValue = Math.max(1, parseFloat((data.value * (1 + (Math.random() - 0.5) / 20)).toFixed(2)));
-    history.push(newValue);
-    if (history.length > 30) history.shift();
-
-    await updateDoc(cryptoRef, {
-      value: newValue,
-      history
+      const data = snap.data();
+      nameElem.textContent = data.name;
+      document.title = `${data.name} - CryptInv`;
+      valueElem.textContent = "$" + data.value;
+      updateChart(data.history || [data.value]);
     });
-  }, 2500);
-}
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) return;
+
+      const userData = userSnap.data();
+
+      buyBtn.onclick = async () => {
+        const cryptoSnap = await getDoc(cryptoRef);
+        const cryptoData = cryptoSnap.data();
+        const price = cryptoData.value;
+
+        if (userData.money >= price) {
+          userData.money -= price;
+          userData.holdings = userData.holdings || {};
+          userData.holdings[id] = (userData.holdings[id] || 0) + 1;
+
+          await updateDoc(userRef, {
+            money: userData.money,
+            holdings: userData.holdings
+          });
+        }
+      };
+
+      sellBtn.onclick = async () => {
+        const cryptoSnap = await getDoc(cryptoRef);
+        const cryptoData = cryptoSnap.data();
+        const price = cryptoData.value;
+
+        userData.holdings = userData.holdings || {};
+        if ((userData.holdings[id] || 0) > 0) {
+          userData.holdings[id] -= 1;
+          userData.money += price;
+
+          await updateDoc(userRef, {
+            money: userData.money,
+            holdings: userData.holdings
+          });
+        }
+      };
+    });
   </script>
 </body>
 </html>
