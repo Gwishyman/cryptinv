@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      background: #222;
+      color: #f5f5dc;
+      font-family: sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+    }
+    .section {
+      margin: 30px 0;
+    }
+    .item {
+      background: #333;
+      margin: 10px 0;
+      padding: 15px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    button {
+      background: crimson;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: darkred;
+    }
+  </style>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+
+  <div class="section">
+    <h2>Cryptos</h2>
+    <div id="cryptoList"></div>
+  </div>
+
+  <div class="section">
+    <h2>Users</h2>
+    <div id="userList"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
+      authDomain: "cryptinv-727ad.firebaseapp.com",
+      projectId: "cryptinv-727ad",
+      storageBucket: "cryptinv-727ad.appspot.com",
+      messagingSenderId: "151829956356",
+      appId: "1:151829956356:web:16f4094359c90fbbb57251"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return location.href = 'index.html';
+
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDocs(collection(db, 'users'));
+      const adminSnap = await userRef.get();
+      if (!adminSnap.exists() || !adminSnap.data().admin) return alert('Not an admin');
+
+      const cryptoList = document.getElementById('cryptoList');
+      const userList = document.getElementById('userList');
+
+      const cryptos = await getDocs(collection(db, 'cryptos'));
+      cryptos.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = `
+          <div><strong>${c.data().name}</strong> — $${c.data().value}</div>
+          <button data-id="${c.id}">Delete</button>
+        `;
+        div.querySelector('button').onclick = async () => {
+          await deleteDoc(doc(db, 'cryptos', c.id));
+          div.remove();
+        };
+        cryptoList.appendChild(div);
+      });
+
+      userSnap.forEach(u => {
+        const div = document.createElement('div');
+        const data = u.data();
+        div.className = 'item';
+        div.innerHTML = `
+          <div>${data.username || '(no username)'} — $${data.balance || 0}</div>
+        `;
+        userList.appendChild(div);
+      });
+    });
+  </script>
+</body>
+</html>
