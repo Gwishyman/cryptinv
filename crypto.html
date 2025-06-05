@@ -158,43 +158,43 @@
     });
 
     buyBtn.onclick = async () => {
+  if (!userRef || !userData || !currentPrice) {
+    alert("Data is loading, please wait a moment.");
+    return;
+  }
+
+  const qtyStr = prompt(`Buy how many?\nPrice per unit: $${currentPrice.toFixed(2)}\nYour balance: $${userData.money.toFixed(2)}`);
+  const qty = parseInt(qtyStr);
+  if (isNaN(qty) || qty <= 0) {
+    alert("Please enter a valid positive number.");
+    return;
+  }
+
+  const totalCost = qty * currentPrice;
+  if (userData.money < totalCost) {
+    alert("Insufficient funds to buy that amount.");
+    return;
+  }
+
   try {
-    if (!userRef || !userData || !currentPrice) {
-      alert("User data is not loaded yet. Please wait and try again.");
-      return;
-    }
+    // Prepare new holdings object safely
+    const newHoldings = {...(userData.holdings || {})};
+    newHoldings[id] = (newHoldings[id] || 0) + qty;
 
-    const qtyInput = prompt(`Buy how many?\nPrice: $${currentPrice.toFixed(2)}\nBalance: $${userData.money.toFixed(2)}`);
-    const qty = parseInt(qtyInput);
-
-    if (isNaN(qty) || qty <= 0) {
-      alert("Please enter a valid quantity.");
-      return;
-    }
-
-    const cost = qty * currentPrice;
-
-    if (userData.money < cost) {
-      alert("You don't have enough money.");
-      return;
-    }
-
-    userData.money -= cost;
-    userData.holdings = userData.holdings || {};
-    userData.holdings[id] = (userData.holdings[id] || 0) + qty;
-
+    // Update Firestore doc with new money and holdings
     await updateDoc(userRef, {
-      money: userData.money,
-      holdings: userData.holdings
+      money: userData.money - totalCost,
+      holdings: newHoldings
     });
 
-    updateStats();
-    alert(`Successfully purchased ${qty} units.`);
+    alert(`Bought ${qty} units of ${id} for $${totalCost.toFixed(2)}.`);
+
   } catch (error) {
-    console.error("Error during purchase:", error);
-    alert("An error occurred during the purchase. Please try again.");
+    console.error("Buy error:", error);
+    alert("Failed to buy crypto, please try again.");
   }
 };
+
     sellBtn.onclick = async () => {
       if (!userRef || !userData || !currentPrice) return;
       const owned = userData.holdings?.[id] ?? 0;
