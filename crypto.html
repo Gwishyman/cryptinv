@@ -148,23 +148,143 @@
         }
       };
 
-      sellBtn.onclick = async () => {
-        const cryptoSnap = await getDoc(cryptoRef);
-        const cryptoData = cryptoSnap.data();
-        const price = cryptoData.value;
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, onSnapshot, updateDoc
+  } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
-        userData.holdings = userData.holdings || {};
-        if ((userData.holdings[id] || 0) > 0) {
-          userData.holdings[id] -= 1;
-          userData.money += price;
+  const firebaseConfig = {
+    apiKey: "AIzaSyB9I85odo6T3NE-026TlwBl-lxuVvMyWVk",
+    authDomain: "cryptinv-727ad.firebaseapp.com",
+    projectId: "cryptinv-727ad",
+    storageBucket: "cryptinv-727ad.appspot.com",
+    messagingSenderId: "151829956356",
+    appId: "1:151829956356:web:16f4094359c90fbbb57251"
+  };
 
-          await updateDoc(userRef, {
-            money: userData.money,
-            holdings: userData.holdings
-          });
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  const params = new URLSearchParams(location.search);
+  const id = params.get("id");
+  if (!id) location.href = "404.html";
+
+  const nameElem = document.getElementById("name");
+  const valueElem = document.getElementById("value");
+  const buyBtn = document.getElementById("buy");
+  const sellBtn = document.getElementById("sell");
+  const statsElem = document.getElementById("stats");
+  const chartCanvas = document.getElementById("chart");
+  let chart;
+
+  const cryptoRef = doc(db, "cryptos", id);
+  let currentPrice = 0;
+
+  function updateChart(history) {
+    if (!chart) {
+      chart = new Chart(chartCanvas, {
+        type: "line",
+        data: {
+          labels: history.map((_, i) => i + 1),
+          datasets: [{
+            label: "Value",
+            data: history,
+            borderColor: "#fdf6ed",
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            tension: 0.3
+          }]
+        },
+        options: {
+          scales: {
+            x: { display: false },
+            y: { beginAtZero: true }
+          }
         }
-      };
+      });
+    } else {
+      chart.data.labels = history.map((_, i) => i + 1);
+      chart.data.datasets[0].data = history;
+      chart.update();
+    }
+  }
+
+  let userRef;
+  let userData = {};
+  let cryptoData = {};
+
+  onSnapshot(cryptoRef, (snap) => {
+    if (!snap.exists()) {
+      location.href = "404.html";
+      return;
+    }
+    cryptoData = snap.data();
+    currentPrice = cryptoData.value;
+    nameElem.textContent = cryptoData.name;
+    document.title = `${cryptoData.name} - CryptInv`;
+    valueElem.textContent = "$" + cryptoData.value;
+    updateChart(cryptoData.history || [cryptoData.value]);
+    updateStats();
+  });
+
+  function updateStats() {
+    const balance = userData.money ?? 0;
+    const owned = userData.holdings?.[id] ?? 0;
+    statsElem.textContent = `Balance: $${balance.toFixed(2)} | You own: ${owned}`;
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+    userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) return;
+    userData = snap.data();
+    updateStats();
+  });
+
+  buyBtn.onclick = async () => {
+    if (!userRef || !userData || !cryptoData) return;
+    const input = prompt(`Buy ${cryptoData.name}\nCurrent price: $${currentPrice}\nYour balance: $${userData.money}\nHow many do you want to buy?`);
+    const qty = parseInt(input);
+    if (!qty || qty <= 0) return;
+    const totalCost = qty * currentPrice;
+    if (userData.money < totalCost) {
+      alert("Nice try. You don't have enough.");
+      return;
+    }
+    userData.money -= totalCost;
+    userData.holdings = userData.holdings || {};
+    userData.holdings[id] = (userData.holdings[id] || 0) + qty;
+    await updateDoc(userRef, {
+      money: userData.money,
+      holdings: userData.holdings
     });
-  </script>
+    updateStats();
+  };
+
+  sellBtn.onclick = async () => {
+    if (!userRef || !userData || !cryptoData) return;
+    const owned = userData.holdings?.[id] ?? 0;
+    const input = prompt(`Sell ${cryptoData.name}\nYou own: ${owned}\nCurrent price: $${currentPrice}\nHow many do you want to sell?`);
+    const qty = parseInt(input);
+    if (!qty || qty <= 0) return;
+    if (owned < qty) {
+      alert("That isn't how it works. You don't have enough, smartass.");
+      return;
+    }
+    const totalGain = qty * currentPrice;
+    userData.money += totalGain;
+    userData.holdings[id] -= qty;
+    if (userData.holdings[id] <= 0) delete userData.holdings[id];
+    await updateDoc(userRef, {
+      money: userData.money,
+      holdings: userData.holdings
+    });
+    updateStats();
+  };
+</script>
+
 </body>
 </html>
