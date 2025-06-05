@@ -159,40 +159,33 @@
 
     buyBtn.onclick = async () => {
   if (!userRef || !userData || !currentPrice) {
-    alert("Data is loading, please wait a moment.");
+    alert("Still loading. Please try again.");
     return;
   }
 
-  const qtyStr = prompt(`Buy how many?\nPrice per unit: $${currentPrice.toFixed(2)}\nYour balance: $${userData.money.toFixed(2)}`);
-  const qty = parseInt(qtyStr);
+  const qty = parseInt(prompt(`Buy how many?\nPrice: $${currentPrice.toFixed(2)}\nBalance: $${userData.money.toFixed(2)}`));
   if (isNaN(qty) || qty <= 0) {
-    alert("Please enter a valid positive number.");
+    alert("Please enter a valid quantity.");
     return;
   }
 
-  const totalCost = qty * currentPrice;
-  if (userData.money < totalCost) {
-    alert("Insufficient funds to buy that amount.");
+  const cost = qty * currentPrice;
+  if (userData.money < cost) {
+    alert("You don't have enough money.");
     return;
   }
 
-  try {
-    // Prepare new holdings object safely
-    const newHoldings = {...(userData.holdings || {})};
-    newHoldings[id] = (newHoldings[id] || 0) + qty;
+  userData.money -= cost;
+  userData.holdings = userData.holdings || {};
+  userData.holdings[id] = (userData.holdings[id] || 0) + qty;
 
-    // Update Firestore doc with new money and holdings
-    await updateDoc(userRef, {
-      money: userData.money - totalCost,
-      holdings: newHoldings
-    });
+  await updateDoc(userRef, {
+    money: userData.money,
+    holdings: userData.holdings
+  });
 
-    alert(`Bought ${qty} units of ${id} for $${totalCost.toFixed(2)}.`);
-
-  } catch (error) {
-    console.error("Buy error:", error);
-    alert("Failed to buy crypto, please try again.");
-  }
+  updateStats();
+  alert(`Successfully purchased ${qty} units.`);
 };
 
     sellBtn.onclick = async () => {
