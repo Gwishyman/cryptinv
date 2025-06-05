@@ -171,7 +171,7 @@
     });
 
     buyBtn.onclick = async () => {
-      if (!userRef || !userData || !currentPrice) return alert("Please wait, still loading...");
+      if (!userRef || !userData || currentPrice === null || currentPrice === undefined) return alert("Please wait, still loading...");
 
       const qty = parseInt(prompt(`Buy how many?\nPrice: $${currentPrice.toFixed(2)}\nBalance: $${userData.money.toFixed(2)}`));
       if (isNaN(qty) || qty <= 0) return;
@@ -193,7 +193,7 @@
     };
 
     sellBtn.onclick = async () => {
-      if (!userRef || !userData || !currentPrice) return alert("Still loading...");
+      if (!userRef || !userData || currentPrice === null || currentPrice === undefined) return alert("Still loading...");
 
       const owned = userData.holdings?.[id] || 0;
       if (owned <= 0) return alert("You don't own any.");
